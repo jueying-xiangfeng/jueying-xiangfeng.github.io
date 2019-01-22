@@ -145,26 +145,5 @@ int main(int argc, const char * argv[]) {
 
 > block能捕获到局部变量,不能捕获到全局变量.
 
-### block的类型
-
-先来看一下测试:
-
-```
-void (^block1)(void) = ^{
-	NSLog(@"block1--- %d  %d  %d", age, height, weight);
-};
-        
-NSLog(@"%@  %@  %@  %@", [block1 class], [[block1 class] superclass], [[[block1 class] superclass] superclass], [[[[block1 class] superclass] superclass] superclass]);
-
-打印结果:
-__NSMallocBlock__  __NSMallocBlock  NSBlock  NSObject
-```
-block确实是对象,继承关系:
-> \_\_NSMallocBlock__ : __NSMallocBlock : NSBlock : NSObject
-
-block类型分为三种:
-> \_\_NSGlobalBlock\__		(没有访问 auto 变量 -- 数据区 -- copy:无操作)
-> \_\_NSStackBlock\__		(访问了 auto 变量 -- 栈 -- copy:由栈复制到堆)
-> \_\_NSMallocBlock\__		(__NSStackBlock__调用了copy -- 堆 -- copy:引用计数增加)
 
 
