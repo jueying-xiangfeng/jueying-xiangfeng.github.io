@@ -1,0 +1,21 @@
+menu:
+    Blog: /
+    Archive: /archives/
+    JIANSHU: https://www.jianshu.com/u/56cc07423502
+    GitHub: https://github.com/jueying-xiangfeng
+    Rss: /atom.xml
+
+favicon: /favicon.png
+logo: /favicon.png
+
+# Comment
+# e.g disqus: seansun
+disqus:
+duoshuo:
+
+# Analytics
+# google-analytics:
+# ga: UA-xxxxxxxx-x
+
+# Copyright Infomation
+startyear: 2018
