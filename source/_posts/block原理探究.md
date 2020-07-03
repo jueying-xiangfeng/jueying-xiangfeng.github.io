@@ -18,11 +18,10 @@ tags:
 ```
 1. block 本质
 2. block 变量捕获
-3. block 类型
-4. block copy 原理
-5. __block __weak 类型原理
-6. block 内存管理
-7. block 循环引用
+3. block 类型、copy 原理
+4. __block 原理
+5. block 内存管理
+6. block 循环引用
 ```
 
 ### Block 本质
