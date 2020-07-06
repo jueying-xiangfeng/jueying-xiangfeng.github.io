@@ -8,7 +8,7 @@ tags:
 
 下面是 block 循环引用的经典图片：
 
-![retaincircly.png](http://ww1.sinaimg.cn/large/005O0Zogly1ggh34f0eg5j30pa0h6n31.jpg)
+![retaincircly.png](https://ws1.sinaimg.cn/large/005O0Zogly1ggh999v50lj30pa0h6n31.jpg)
 
 看一下测试代码：
 
