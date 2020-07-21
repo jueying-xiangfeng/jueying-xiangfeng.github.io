@@ -3,7 +3,7 @@ title: Runtime原理探究
 date: 2020-07-20 10:39:44
 tags:
 
-typora-copy-images-to: upload
+
 ---
 
 ```
@@ -327,11 +327,13 @@ void cache_t::expand()
 
 看一下下面的经典调用图片
 
-![oc-class](https://raw.githubusercontent.com/jueying-xiangfeng/jueying-xiangfeng.github.io/hexo/assets/oc-class.png)
+![oc-class.png](https://blog-key.oss-cn-beijing.aliyuncs.com/blog/runtime/oc-class.png)
+
+
 
 下面看下消息发送的流程：
 
-![消息发送](https://raw.githubusercontent.com/jueying-xiangfeng/jueying-xiangfeng.github.io/hexo/assets/%E6%B6%88%E6%81%AF%E5%8F%91%E9%80%81.png)
+![消息发送](https://blog-key.oss-cn-beijing.aliyuncs.com/blog/runtime/%E6%B6%88%E6%81%AF%E5%8F%91%E9%80%81.png)
 
 
 
@@ -339,7 +341,7 @@ void cache_t::expand()
 
 调用流程如下：
 
-![动态方法解析](https://raw.githubusercontent.com/jueying-xiangfeng/jueying-xiangfeng.github.io/hexo/assets/%E5%8A%A8%E6%80%81%E6%96%B9%E6%B3%95%E8%A7%A3%E6%9E%90.png)
+![动态方法解析](https://blog-key.oss-cn-beijing.aliyuncs.com/blog/runtime/%E5%8A%A8%E6%80%81%E6%96%B9%E6%B3%95%E8%A7%A3%E6%9E%90.png)
 
 这里可以从 objc 的源码里面查到（lookUpImpOrForward 方法）：
 
@@ -367,7 +369,7 @@ cache_fill(cls, sel, imp, inst);
 
 看下流程图：
 
-![消息转发](https://raw.githubusercontent.com/jueying-xiangfeng/jueying-xiangfeng.github.io/hexo/assets/%E6%B6%88%E6%81%AF%E8%BD%AC%E5%8F%91.png)
+![消息转发](https://blog-key.oss-cn-beijing.aliyuncs.com/blog/runtime/%E6%B6%88%E6%81%AF%E8%BD%AC%E5%8F%91.png)
 
 由于消息转发阶段没有开源，这里在网上扒出大神整理的伪代码：
 
@@ -464,6 +466,8 @@ int __forwarding__(void *frameStackPointer, int isStret) {
 
 ### 5、Super 本质
 
+#### super 本质调用
+
 了解完 objc_msgSend 机制再来看下 super 的本质。
 
 做个测试，重写 forwardInvocation 方法：
@@ -504,3 +508,158 @@ struct __rw_objc_super {
 根据上面  objc_msgSendSuper 初始化的调用可以看到，super 的实质其实还是向 self 发送消息，receiver 依然是 self，只不过第二个参数是 superClass。
 
 所以 super 的本质就是向 self（receiver）发送消息，不过查找方法时是从 super 开始查找。
+
+其实这里看到的也并非最终的调用方式，通过源码或者汇编代码，或者用 [这里](https://github.com/RetVal/objc-runtime) 调试查看，最终 super 生成的结构是：
+
+```
+struct objc_super2 {
+    id receiver;
+    Class current_class;
+};
+
+
+ENTRY _objc_msgSendSuper2
+
+ldr	r9, [r0, #CLASS]	// class = struct super->class
+// 通过 current_class 找到 superClass
+ldr	r9, [r9, #SUPERCLASS]   // class = class->superclass
+CacheLookup NORMAL, _objc_msgSendSuper2
+// cache hit, IMP in r12, eq already set for nonstret forwarding
+ldr	r0, [r0, #RECEIVER]	// load real receiver
+bx	r12			// call imp
+
+CacheLookup2 NORMAL, _objc_msgSendSuper2
+// cache miss
+ldr	r9, [r0, #CLASS]	// class = struct super->class
+ldr	r9, [r9, #SUPERCLASS]   // class = class->superclass
+ldr	r0, [r0, #RECEIVER]	// load real receiver
+b	__objc_msgSend_uncached
+
+END_ENTRY _objc_msgSendSuper2
+```
+
+不管是 objc_super 还是 objc_super2，对这里的理解是没有影响的，消息的接收者就是 self，不过查找方法是从 superClass 开始查找的。
+
+
+
+#### 结合消息发送机制对 super 调用方法的疑问
+
+> 昨天写到 super 的时候突然想到了一个问题，就是 super 的本质是：消息接受者为 self，不过查找方法是在 superClass 开始查找，根据消息发送机制，查找到方法后会将 IMP 存入到 bucket 里面。
+>
+> 注意：这里的 bucket 是哪个 cls 的呢？
+>
+> 由于对上面 【4、消息发送】那张经典图片理解的不够，认为查找到目标方法后就是把对应的方法放到 receiver 的 cache_t 里面，结果就有了下面的这个猜想。。。
+
+猜想是这样的：
+
+```objective-c
+@interface Student : NSObject
+- (void)studentTest;
+@end
+@implementation Student
+- (void)studentTest {
+    NSLog(@"%s", __func__);
+}
+@end
+
+
+@interface GoodStudent : Student
+- (void)test;
+@end
+@implementation GoodStudent
+- (void)studentTest {
+    [super studentTest];
+    NSLog(@"%s", __func__);
+}
+
+- (void)test {
+    [super studentTest];
+    [self studentTest];
+}
+@end
+```
+
+如上我们使用 GoodStudent 实例调用 test 方法，
+
+1. 当调用完 `[super studentTest];`后，GoodStudent 的 cache_t 里面就应该有了`studentTest`方法的缓存
+2. 当执行 `[self studentTest];`时，根据消息发送机制，在缓存中查找到了第一步调用的缓存，也就是 superClass 的方法缓存
+3. 所以结果就是只要缓存还在就不会调用到 self 的 `studentTest` 方法
+
+看完我的猜想是不是感觉很扯，但是就这困惑了我很久，从昨天晚上开始查资料，一直到今天早上早早来公司，看了半天 objc 的源码才找到答案，其实答案已经看过很多遍，不过由于根据网络上面各种文章的洗脑，从来没有静下心来一句一句的分析 objc 的源码，现在来看下这个很扯的想法是怎样被推翻的：
+
+```objective-c
+// 1、执行 [super studentTest]; 
+// 2、会调用 lookUpImpOrForward 方法，注意：inst 就是 receiver(self)，cls 就是 superClass
+IMP lookUpImpOrForward(id inst, SEL sel, Class cls, int behavior)
+
+// 3、查找到方法后会调用 log_and_fill_cache，这里 receiver 就是 self，cls 为 superClass
+static void
+log_and_fill_cache(Class cls, IMP imp, SEL sel, id receiver, Class implementer)
+
+// 4、调用 cache_fill 方法
+// 看下缓存的 cache_t 是在 cls 里面取出来的，而将 imp 缓存到 cache 时会调用 cache->insert
+void cache_fill(Class cls, SEL sel, IMP imp, id receiver)
+{
+    if (cls->isInitialized()) {
+        cache_t *cache = getCache(cls);
+        cache->insert(cls, sel, imp, receiver);
+    }
+}
+// 5、cache->insert 方法
+// 注意这里 set 缓存时，是放在了 cls 里面，而 receiver 的作用就是在设置缓存失败时接受消息，这就对上了，因为self 本来就是单纯的 receiver，和方法的缓存没有关系，这里方法的缓存纸盒 cls 有关
+void cache_t::insert(Class cls, SEL sel, IMP imp, id receiver)
+{
+    // Use the cache as-is if it is less than 3/4 full
+    mask_t newOccupied = occupied() + 1;
+    unsigned oldCapacity = capacity(), capacity = oldCapacity;
+    if (slowpath(isConstantEmptyCache())) {
+        // Cache is read-only. Replace it.
+        if (!capacity) capacity = INIT_CACHE_SIZE;
+        reallocate(oldCapacity, capacity, /* freeOld */false);
+    }
+    else if (fastpath(newOccupied <= capacity / 4 * 3)) {
+        // Cache is less than 3/4 full. Use it as-is.
+    }
+    else {
+        capacity = capacity ? capacity * 2 : INIT_CACHE_SIZE;
+        if (capacity > MAX_CACHE_SIZE) {
+            capacity = MAX_CACHE_SIZE;
+        }
+        reallocate(oldCapacity, capacity, true);
+    }
+
+    bucket_t *b = buckets();
+    mask_t m = capacity - 1;
+    mask_t begin = cache_hash(sel, m);
+    mask_t i = begin;
+
+    // Scan for the first unused slot and insert there.
+    // There is guaranteed to be an empty slot because the
+    // minimum size is 4 and we resized at 3/4 full.
+    do {
+        if (fastpath(b[i].sel() == 0)) {
+            incrementOccupied();
+            b[i].set<Atomic, Encoded>(sel, imp, cls);
+            return;
+        }
+        if (b[i].sel() == sel) {
+            // The entry was added to the cache by some other thread
+            // before we grabbed the cacheUpdateLock.
+            return;
+        }
+    } while (fastpath((i = cache_next(i, m)) != begin));
+
+    cache_t::bad_cache(receiver, (SEL)sel, cls);
+}
+
+// 6、经过上面分析，在调用 [self studentTest]; 时，会先从 self.class 里面查找缓存，此时是没有的，因为 super 调用时缓存是在 superClass 里面的，所以这里会从新走消息发送的流程。
+```
+
+扯归扯，但是这里一定要清楚这里的方法查找和缓存是针对 cls 的。
+
+关于这个很扯问题的分析使用的是 objc 最新的代码版本（781），和之前的版本是有一些不同的，关于最新版本 objc 的优化项可以看[这里](https://mp.weixin.qq.com/s/47fSMCwhl8KwhVWk9uRoag)。 
+
+
+
+参考：https://halfrost.com/objc_runtime_isa_class/
+
