@@ -6,9 +6,11 @@ tags:
 
 ---
 
-```
-原计划一周一个模块，但是看到 runTime 这里持续时间有点长，底层内容很多啊，原因还是之前基础太差，菜的抠脚。。。还有整理完 block 后再想 block hook 应该怎么实现，瞎搞了一通最后找到了开源的库 `blockHook`，看了几天的源码发现底层掌握的还是不牢，其中包括 runtime 部分，先整理完 runtime 部分然后再回头重新分析 blockHook。
-```
+> 原计划一周一个模块，但是看到 runTime 这里持续时间有点长，底层内容很多啊，原因还是之前基础太差，菜的抠脚。。。还有整理完 block 后再想 block hook 应该怎么实现，瞎搞了一通最后找到了开源的库 `blockHook`，看了几天的源码发现底层掌握的还是不牢，其中包括 runtime 部分，先整理完 runtime 部分然后再回头重新分析 blockHook。
+
+
+
+下文内容是根据 [objc4-723](https://opensource.apple.com/tarballs/objc4/) 版本分析的，目前最新版本是 [objc4-781](https://opensource.apple.com/tarballs/objc4/)，最新版本做了一些优化，不过不影响我们理解。
 
 
 
@@ -606,7 +608,7 @@ void cache_fill(Class cls, SEL sel, IMP imp, id receiver)
     }
 }
 // 5、cache->insert 方法
-// 注意这里 set 缓存时，是放在了 cls 里面，而 receiver 的作用就是在设置缓存失败时接受消息，这就对上了，因为self 本来就是单纯的 receiver，和方法的缓存没有关系，这里方法的缓存纸盒 cls 有关
+// 注意这里 set 缓存时，是放在了 cls 里面，而 receiver 的作用就是在设置缓存失败时接收消息，这就对上了，因为self 本来就是单纯的 receiver，和方法的缓存没有关系，这里方法的缓存只和 cls 有关
 void cache_t::insert(Class cls, SEL sel, IMP imp, id receiver)
 {
     // Use the cache as-is if it is less than 3/4 full
@@ -661,5 +663,291 @@ void cache_t::insert(Class cls, SEL sel, IMP imp, id receiver)
 
 
 
-参考：https://halfrost.com/objc_runtime_isa_class/
+### 6、几个 runtime 相关的应用
+
+#### 常用的几个类的实现
+
+```objective-c
++ (Class)class {
+    return self;
+}
+
+- (Class)class {
+    return object_getClass(self);
+}
+
++ (Class)superclass {
+    return self->superclass;
+}
+
+- (Class)superclass {
+    return [self class]->superclass;
+}
+
++ (BOOL)isMemberOfClass:(Class)cls {
+    return self->ISA() == cls;
+}
+
+- (BOOL)isMemberOfClass:(Class)cls {
+    return [self class] == cls;
+}
+
++ (BOOL)isKindOfClass:(Class)cls {
+    for (Class tcls = self->ISA(); tcls; tcls = tcls->superclass) {
+        if (tcls == cls) return YES;
+    }
+    return NO;
+}
+
+- (BOOL)isKindOfClass:(Class)cls {
+    for (Class tcls = [self class]; tcls; tcls = tcls->superclass) {
+        if (tcls == cls) return YES;
+    }
+    return NO;
+}
+```
+
+这里需要注意的有两个：
+
+```objective-c
+// 1、isKindOfClass 与 isMemberOfClass 的区别
+-+ (BOOL)isKindOfClass:(Class)cls;
+-+ (BOOL)isMemberOfClass:(Class)cls;
+
+// 2、object_getClass 与 objc_getClass 的区别
+Class object_getClass(id obj)
+{
+    if (obj) return obj->getIsa();
+    else return Nil;
+}
+
+
+Class objc_getClass(const char *aClassName)
+{
+    if (!aClassName) return Nil;
+
+    // NO unconnected, YES class handler
+    return look_up_class(aClassName, NO, YES);
+}
+
+```
+
+
+
+#### 经典的 hook 实现
+
+创建两个测试类
+
+```objective-c
+@interface Animal : NSObject
+@end
+@implementation Animal
+- (void)animalTest {
+    NSLog(@"Animal test");
+}
+@end
+
+
+@interface Person : Animal
+@end
+@implementation Person
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Method originalMethod = class_getInstanceMethod(self, @selector(animalTest));
+        Method swizzlingMethod = class_getInstanceMethod(self, @selector(hook_animalTest));
+        method_exchangeImplementations(originalMethod, swizzlingMethod);
+    });
+}
+
+- (void)hook_animalTest {
+    NSLog(@"hook_animalTest test");
+    [self hook_animalTest];
+}
+@end
+
+  
+
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        // 测试 1
+        Person * p = [[Person alloc] init];
+        [p animalTest];
+      
+        // 测试 2
+        Animal * a = [[Animal alloc] init];
+        [a animalTest];
+    }
+    return 0;
+}
+```
+
+
+
+如上，我们 hook `animalTest`方法，然后运行
+
+测试1 可以看到如下打印：
+
+```
+2020-07-22 14:53:25.496785+0800 debug-objc[75368:2985804] hook_animalTest test
+2020-07-22 14:53:25.500559+0800 debug-objc[75368:2985804] Animal test
+```
+
+但是到测试2 的时候程序程序挂掉了，可以看下crash信息：
+
+```
+2020-07-22 14:54:43.493195+0800 debug-objc[75425:2989235] hook_animalTest test
+2020-07-22 14:54:43.493866+0800 debug-objc[75425:2989235] Animal test
+2020-07-22 14:54:45.558115+0800 debug-objc[75425:2989235] hook_animalTest test
+2020-07-22 14:54:45.558828+0800 debug-objc[75425:2989235] -[Animal hook_animalTest]: unrecognized selector sent to instance 0x1019183a0
+2020-07-22 14:54:45.563992+0800 debug-objc[75425:2989235] *** Terminating app due to uncaught exception 'NSInvalidArgumentException', reason: '-[Animal hook_animalTest]: unrecognized selector sent to instance 0x1019183a0'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x00007fff374ffbe7 __exceptionPreprocess + 250
+	1   libobjc.A.dylib                     0x000000010038f350 objc_exception_throw + 48
+	2   CoreFoundation                      0x00007fff3757ec77 -[NSObject(NSObject) __retain_OA] + 0
+	3   CoreFoundation                      0x00007fff3746444b ___forwarding___ + 1427
+	4   CoreFoundation                      0x00007fff37463e28 _CF_forwarding_prep_0 + 120
+	5   debug-objc                          0x0000000100001bfd -[Person hook_animalTest] + 61
+	6   debug-objc                          0x0000000100001c9d main + 141
+	7   libdyld.dylib                       0x00007fff7147ecc9 start + 1
+)
+libc++abi.dylib: terminating with uncaught exception of type NSException
+```
+
+为什么会出现这种情况呢？
+
+来分析下 `method_exchangeImplementations`其实就是交换两个方法的 IMP，由于 `animalTest`方法是在父类 Animal 里面，所以在子类 Person 要交换方法时，其实交换的是父类 Animal 里面的方法实现，这种情况对子类Person是没有影响的，完全可以达到 hook 的目的，但是对父类 Animal 就不一样了，因为这种方法直接替换了父类的实现，当父类在调用 `animalTest`时其实最终就是在调用子类的 `hook_animalTest`，因为两个方法的IMP已经交换了，然后子类里面在执行 `[self hook_animalTest]`时，此时的 self 是 Animal，意思是向 Animal 发送 `hook_animalTest`的消息，根据我们上面分析的消息发送机制可以得到这里必然会出现这个经典的crash `**unrecognized selector sent to instance`。
+
+为了解决上面的隐藏问题，我们来看下 hook 的正确姿势：
+
+```objective-c
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        
+        Method originalMethod = class_getInstanceMethod(self, @selector(animalTest));
+        Method swizzlingMethod = class_getInstanceMethod(self, @selector(hook_animalTest));
+        
+        // 如果返回 YES 则证明当前类没有这个方法，也就是说该方法可能在父类里面，所以需要将我们最终目标的 method 添加到 Person 里面，并且将 Person 的 hook_animalTest 方法与原来 method 互换。
+        // 如果返回 NO 则证明当前类有这个方法，直接交换就好
+        BOOL addResult = class_addMethod(self,
+                                         method_getName(originalMethod),
+                                         method_getImplementation(swizzlingMethod),
+                                         method_getTypeEncoding(swizzlingMethod));
+        if (addResult) {
+            class_replaceMethod(self,
+                                method_getName(swizzlingMethod),
+                                method_getImplementation(originalMethod),
+                                method_getTypeEncoding(originalMethod));
+        } else {
+            method_exchangeImplementations(originalMethod, swizzlingMethod);
+        }
+    });
+}
+```
+
+来看下 objc 源码：
+
+```objective-c
+BOOL 
+class_addMethod(Class cls, SEL name, IMP imp, const char *types)
+{
+    if (!cls) return NO;
+
+    mutex_locker_t lock(runtimeLock);
+    // addMethod返回的 IMP == nil ? YES : NO
+    return ! addMethod(cls, name, imp, types ?: "", NO);
+}
+
+
+static IMP 
+addMethod(Class cls, SEL name, IMP imp, const char *types, bool replace)
+{
+    IMP result = nil;
+
+    runtimeLock.assertLocked();
+
+    checkIsKnownClass(cls);
+    
+    ASSERT(types);
+    ASSERT(cls->isRealized());
+
+    method_t *m;
+  
+    // 1、如果 cls 里面有 name 对应的 method，则直接返回对应的 IMP
+    if ((m = getMethodNoSuper_nolock(cls, name))) {
+        // already exists
+        if (!replace) {
+            result = m->imp;
+        } else {
+            result = _method_setImplementation(cls, m, imp);
+        }
+    } else {
+        // 2、如果没有，则将 hook 的方法添加到 cls 中
+        method_list_t *newlist;
+        newlist = (method_list_t *)calloc(sizeof(*newlist), 1);
+        newlist->entsizeAndFlags = 
+            (uint32_t)sizeof(method_t) | fixed_up_method_list;
+        newlist->count = 1;
+        newlist->first.name = name;
+        newlist->first.types = strdupIfMutable(types);
+        newlist->first.imp = imp;
+
+        prepareMethodLists(cls, &newlist, 1, NO, NO);
+        cls->data()->methods.attachLists(&newlist, 1);
+        flushCaches(cls);
+
+        result = nil;
+    }
+    return result;
+}
+```
+
+再来看下 replace 源码：
+
+```objective-c
+// 可以看出和 class_addMethod 源码调用的是同一个方法，只不过给 addMethod 的最后一个参数：replace 传的 YES
+IMP 
+class_replaceMethod(Class cls, SEL name, IMP imp, const char *types)
+{
+    if (!cls) return nil;
+
+    mutex_locker_t lock(runtimeLock);
+    return addMethod(cls, name, imp, types ?: "", YES);
+}
+
+// 如果 replace 为 YES是走的 _method_setImplementation 方法
+// 可以看出这里就是替换了 method_t 的 IMP
+static IMP 
+_method_setImplementation(Class cls, method_t *m, IMP imp)
+{
+    runtimeLock.assertLocked();
+
+    if (!m) return nil;
+    if (!imp) return nil;
+
+    IMP old = m->imp;
+    m->imp = imp;
+
+    // Cache updates are slow if cls is nil (i.e. unknown)
+    // RR/AWZ updates are slow if cls is nil (i.e. unknown)
+    // fixme build list of classes whose Methods are known externally?
+
+    flushCaches(cls);
+
+    adjustCustomFlagsForMethodChange(cls, m);
+
+    return old;
+}
+
+```
+
+
+
+### 参考神经病院系列：
+
+1. https://halfrost.com/objc_runtime_isa_class/
+2. https://halfrost.com/objc_runtime_objc_msgsend/
+3. https://halfrost.com/how_to_use_runtime/
 
