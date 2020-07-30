@@ -495,6 +495,258 @@ dispatch_async(dispatch_get_global_queue(0, 0), ^{
 
 #### 5.4 线程保活
 
+我们知道当线程在执行完当前任务后就会退出，那么如果想要线程在执行完任务后依然保留，当我们彻底不需要时再将线程退出。这个时候就需要使用 RunLoop 来做到线程保活，我们自己来控制线程的生命周期。
+
+来做个测试：
+
+```objective-c
+@interface XFThread : NSThread
+@end
+@implementation XFThread
+- (void)dealloc {
+    NSLog(@"%s", __func__);
+}
+@end
+
+
+@interface ViewController ()
+@property (nonatomic, strong) XFThread * thread;
+@end
+@implementation ViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    self.thread = [[XFThread alloc] initWithBlock:^{
+        NSLog(@"---- tread begin -----");
+      
+        NSLog(@"---- tread end -----");
+    }];
+    [self.thread start];
+}
+
+- (void)dealloc {
+    NSLog(@"%s", __func__);
+    [self stop:nil];
+}
+
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [self performSelector:@selector(threadAction) onThread:self.thread withObject:nil waitUntilDone:NO];
+    
+    NSLog(@"%s", __func__);
+}
+
+- (void)threadAction {
+    NSLog(@"%s", __func__);
+}
+@end
+```
+
+当 push 进 ViewController 时，可以看到 thread 的 begin、end 都已经打印完，此时当我们点击屏幕的时候，并没有走 `threadAction`方法，而当把 waitUntilDone 参数设置为 YES 时，会直接报出坏内存访问的 crash，因为线程在 start 时已经执行完任务了，这条线程已经是一个没用的线程，不能再用来执行任务了。
+
+这是就需要用到了 RunLoop：
+
+```objective-c
+- (void)viewDidLoad {
+    [super viewDidLoad];
+  
+    self.thread = [[XFThread alloc] initWithBlock:^{
+
+        NSLog(@"---- tread begin -----");
+        
+        [[NSRunLoop currentRunLoop] addPort:[[NSPort alloc] init] forMode:NSDefaultRunLoopMode];
+        [[NSRunLoop currentRunLoop] run];
+ 
+        NSLog(@"---- tread end -----");
+    }];
+    [self.thread start];
+}
+
+- (IBAction)stop:(id)sender {
+    [self performSelector:@selector(stopThread) onThread:self.thread withObject:nil waitUntilDone:NO];
+}
+
+- (void)stopThread {
+    CFRunLoopStop(CFRunLoopGetCurrent());
+    NSLog(@"%s", __func__);
+}
+
+- (void)dealloc {
+    NSLog(@"%s", __func__);
+    [self stop:nil];
+}
+```
+
+添加 RunLoop 后再增加一个 stop 按钮，当点击 stop 时，我们发现并没有执行 tread end。这是因为 run 方法导致的，来看下 run 方法的官方解释：
+
+> ## Discussion
+>
+> If no input sources or timers are attached to the run loop, this method exits immediately; otherwise, it runs the receiver in the `NSDefaultRunLoopMode` by repeatedly invoking [`runMode:beforeDate:`](apple-reference-documentation://hcGlc34FMW). In other words, this method effectively begins an infinite loop that processes data from the run loop’s input sources and timers. 
+>
+> Manually removing all known input sources and timers from the run loop is not a guarantee that the run loop will exit. macOS can install and remove additional input sources as needed to process requests targeted at the receiver’s thread. Those sources could therefore prevent the run loop from exiting. 
+>
+> If you want the run loop to terminate, you shouldn't use this method. Instead, use one of the other run methods and also check other arbitrary conditions of your own, in a loop. A simple example would be:
+>
+> ```cfamily
+> BOOL shouldKeepRunning = YES; // global
+> NSRunLoop *theRL = [NSRunLoop currentRunLoop];
+> while (shouldKeepRunning && [theRL runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]);
+> ```
+>
+> where `shouldKeepRunning` is set to `NO` somewhere else in the program.
+
+可以看到 run 方法是用来设置永不销毁的线程的，如果想要控制线程的生命周期，需要使用 example 里面的方法。来试下：
+
+```objective-c
+@interface ViewController ()
+@property (nonatomic, strong) XFThread * thread;
+@property (nonatomic, assign, getter=isStoped) BOOL stoped;
+@end
+  
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    typeof(self) __weak weakSelf = self;
+    self.stoped = NO;
+    
+    self.thread = [[XFThread alloc] initWithBlock:^{
+
+        NSLog(@"---- tread begin -----");
+        [[NSRunLoop currentRunLoop] addPort:[[NSPort alloc] init] forMode:NSDefaultRunLoopMode];
+        while (weakSelf && !weakSelf.isStoped) {
+            [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]];
+        }
+        NSLog(@"---- tread end -----");
+    }];
+    [self.thread start];
+}
+
+- (void)threadAction {
+    NSLog(@"%s", __func__);
+}
+
+- (void)dealloc {
+    NSLog(@"%s", __func__);
+    [self stop:nil];
+}
+
+- (IBAction)stop:(id)sender {
+    if (!self.thread) {
+        return;
+    }
+    
+    [self performSelector:@selector(stopThread) onThread:self.thread withObject:nil waitUntilDone:NO];
+}
+
+- (void)stopThread {
+    self.stoped = YES;
+
+    CFRunLoopStop(CFRunLoopGetCurrent());
+
+    self.thread = nil;
+
+    NSLog(@"%s", __func__);
+}
+
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    
+    if (!self.thread) {
+        return;
+    }
+    
+    [self performSelector:@selector(threadAction) onThread:self.thread withObject:nil waitUntilDone:NO];
+    
+    NSLog(@"%s", __func__);
+}
+```
+
+但此时直接退出界面或者主动触发 stop，会出现 crash，因为此时 stopThread 和 dealloc 方法是同事进行的，这里需要保证先执行 stopTread，然后在执行 dealloc。所以这里需要把 waitUntilDone 方法设置为 YES：
+
+```objective-c
+- (IBAction)stop:(id)sender {
+    if (!self.thread) {
+        return;
+    }
+    
+    [self performSelector:@selector(stopThread) onThread:self.thread withObject:nil waitUntilDone:YES];
+}
+```
+
+完美解决~
+
+简单来封装下 thread：
+
+```objective-c
+@interface XFThread : NSThread
+@end
+@implementation XFThread
+- (void)dealloc {
+    NSLog(@"%s", __func__);
+}
+@end
+  
+@interface XFPermenentThread : NSObject
+- (void)stop;
+- (void)executeTask:(dispatch_block_t)task;
+@end
+
+@interface XFPermenentThread ()
+@property (nonatomic, strong) XFThread * innerThread;
+@property (nonatomic, assign, getter=isStopped) BOOL stopped;
+@end
+
+@implementation XFPermenentThread
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        self.stopped = NO;
+        
+        typeof(self) __weak weakSelf = self;
+        
+        self.innerThread = [[XFThread alloc] initWithBlock:^{
+            
+            [[NSRunLoop currentRunLoop] addPort:[[NSPort alloc] init] forMode:NSDefaultRunLoopMode];
+            
+            while (weakSelf && !weakSelf.isStopped) {
+                [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]];
+            }
+        }];
+        [self.innerThread start];
+    }
+    return self;
+}
+
+- (void)stop {
+    if (!self.innerThread) {
+        return;
+    }
+    [self performSelector:@selector(__stop) onThread:self.innerThread withObject:nil waitUntilDone:YES];
+}
+
+- (void)executeTask:(dispatch_block_t)task {
+    if (!self.innerThread || !task) {
+        return;
+    }
+    [self performSelector:@selector(__executeTask:) onThread:self.innerThread withObject:task waitUntilDone:NO];
+}
+
+- (void)dealloc {
+    NSLog(@"%s", __func__);
+    [self stop];
+}
+
+- (void)__stop {
+    self.stopped = YES;
+    CFRunLoopStop(CFRunLoopGetCurrent());
+    self.innerThread = nil;
+}
+
+- (void)__executeTask:(dispatch_block_t)task {
+    !task ? : task();
+}
+@end  
+```
+
+至此我们可以做到手动控制一条线程的生命周期。
 
 
 
@@ -502,8 +754,10 @@ dispatch_async(dispatch_get_global_queue(0, 0), ^{
 
 
 
+###  参考 ：
 
-
+1. YY 大神：https://blog.ibireme.com/2015/05/18/runloop/#more-41710
+2. 官方源码：https://opensource.apple.com/tarballs/CF/
 
 
 
