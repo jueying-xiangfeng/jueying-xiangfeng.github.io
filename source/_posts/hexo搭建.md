@@ -56,5 +56,3 @@ $ hexo clean && hexo g && hexo d
 参考链接:
 1. [mac环境下搭建hexo+github pages+next个人博客](https://juejin.im/post/5ac8db4d6fb9a028d5675c13)
 2. [5分钟 搭建免费个人博客](https://www.jianshu.com/p/4eaddcbe4d12)
-
-<!-- more --> 

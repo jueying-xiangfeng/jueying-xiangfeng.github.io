@@ -44,8 +44,6 @@ NSKeyValueObservingOptions options = NSKeyValueObservingOptionNew | NSKeyValueOb
 ```
 以上为KVO的基本使用。
 
-<!-- more -->
-
 #### 关于KVO的疑问和分析
 再次添加属性 `@property (nonatomic, strong) Person * person2;`
 实例化person2，在touchedBegan方法中修改值但是不添加KVO：

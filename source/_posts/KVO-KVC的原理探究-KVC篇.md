@@ -13,8 +13,6 @@ KVC全称Key-Value Coding 键值编码，可以通过Key来访问某个属性，
 - (nullable id)valueForKey:(NSString *)key;
 - (void)setValue:(nullable id)value forKey:(NSString *)key;
 ```
-<!-- more -->
-
 创建Person类、Animal类，添加属性如下：
 
 ```

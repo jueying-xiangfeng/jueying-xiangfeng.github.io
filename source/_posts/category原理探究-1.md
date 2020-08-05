@@ -26,8 +26,6 @@ date: 2018-07-21 14:40:13
 ### category的真面目
 在.cpp文件最下面可以找到category被编译后的结构：
 
-<!-- more -->
-
 ```
 struct _category_t {
 	const char *name;
