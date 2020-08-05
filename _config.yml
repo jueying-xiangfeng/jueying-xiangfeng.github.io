@@ -8,7 +8,7 @@ subtitle:
 description:
 keywords:
 author: Key
-language: zh-Hans
+language: zh-CN
 timezone:
 
 # URL
@@ -41,7 +41,7 @@ future: true
 highlight:
   enable: true
   line_number: true
-  auto_detect: false
+  auto_detect: true
   tab_replace:
   
 # Home page setting
@@ -73,7 +73,9 @@ pagination_dir: page
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: apollo #next
+theme: maupassant #apollo #next
+
+mathjax: true
 
 archive_generator:
     per_page: 0
