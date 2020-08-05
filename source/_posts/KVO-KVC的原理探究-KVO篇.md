@@ -3,8 +3,10 @@ title: KVO-KVC的原理探究 - KVO篇
 date: 2018-07-17 11:38:17
 desc: 哈利的首付款楼上的回复考虑到.
 ---
-<!-- more -->
+
+
 ### 关于KVO的探究
+
 #### KVO的基本使用
 创建Person类，添加属性age：
 
@@ -41,6 +43,9 @@ NSKeyValueObservingOptions options = NSKeyValueObservingOptionNew | NSKeyValueOb
 }
 ```
 以上为KVO的基本使用。
+
+<!-- more -->
+
 #### 关于KVO的疑问和分析
 再次添加属性 `@property (nonatomic, strong) Person * person2;`
 实例化person2，在touchedBegan方法中修改值但是不添加KVO：

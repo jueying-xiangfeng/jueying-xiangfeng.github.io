@@ -3,8 +3,6 @@ title: hexo搭建
 date: 2018-06-01 09:24:54
 tags:
 ---
-<!-- more --> 
-
 ## 开始搭建
 ### 1. 创建Git仓库
 在git上创建存放blog的仓库，名称为 username.github.io
@@ -59,3 +57,4 @@ $ hexo clean && hexo g && hexo d
 1. [mac环境下搭建hexo+github pages+next个人博客](https://juejin.im/post/5ac8db4d6fb9a028d5675c13)
 2. [5分钟 搭建免费个人博客](https://www.jianshu.com/p/4eaddcbe4d12)
 
+<!-- more --> 

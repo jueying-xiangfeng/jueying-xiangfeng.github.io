@@ -33,6 +33,8 @@ block->FuncPtr(block);
 ```
 可以看到最终block的调用就是 `block->FuncPtr(block);` , 就是调用函数
 
+<!-- more -->
+
 看一下block的 `__main_block_impl_0` 的结构:
 
 ```

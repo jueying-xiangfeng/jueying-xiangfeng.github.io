@@ -32,6 +32,8 @@ block类型分为三种:
 > \_\_NSStackBlock\__  (访问了 auto 变量 -- `栈区` -- copy:由栈复制到堆)
 > \_\_NSMallocBlock\__	 (__NSStackBlock__调用了copy -- `堆区` -- copy:引用计数增加)
 
+<!-- more -->
+
 ### 总结下block的copy
 
 #### 1、ARC环境下

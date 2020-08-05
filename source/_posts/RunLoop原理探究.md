@@ -31,6 +31,8 @@ RunLoop 其实就是一个对象，这个对象管理了其需要处理的消息
 
 可以在[这里](http://opensource.apple.com/tarballs/CF/)下载到 CoreFoundation的源码来查看具体实现。
 
+<!-- more -->
+
 ### 2、RunLoop 结构
 
 iOS 有两套 API 来访问和使用 RunLoop：`NSRunLoop`、`CFRunLoop`。NSRunLoop 是基于 CFRunLoop 的包装

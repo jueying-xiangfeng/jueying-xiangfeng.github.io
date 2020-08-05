@@ -10,6 +10,10 @@ tags:
 
 ![retaincircly.png](http://ww1.sinaimg.cn/large/005O0Zogly1ggh999v50lj30pa0h6n31.jpg)
 
+
+
+<!-- more -->
+
 看一下测试代码：
 
 ```
