@@ -1,0 +1,116 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>block3-类型、copy原理 | 白夜追凶</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/normalize.css/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/pure-min.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><link rel="alternate" type="application/atom+xml" href="/atom.xml"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/clipboard/dist/clipboard.min.js"></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.js"></script><link rel="stylesheet" href="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.css"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">block3-类型、copy原理</h1><a id="logo" href="/.">白夜追凶</a><p class="description"></p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">block3-类型、copy原理</h1><div class="post-meta">2020年07月02日</div><div class="post-content"><h3 id="block-类型"><a href="#block-类型" class="headerlink" title="block 类型"></a>block 类型</h3><p>block 的类型有3中，可以通过调用 class 方法或者 isa 指针查看具体类型，最终都是集成子 NSBlock 类型</p>
+<ol>
+<li>数据区：<strong>NSGlobalBlock</strong> （ _NSConcreteGlobalBlock ）</li>
+<li>栈区：<strong>NSStackBlock</strong> （ _NSConcreteStackBlock ）</li>
+<li>堆区：<strong>NSMallocBlock</strong> （ _NSConcreteMallocBlock ）</li>
+</ol>
+<blockquote>
+<p>block 类型的具体类型区分：</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>block 类型</th>
+<th>环境</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>__NSGlobalBlock__</td>
+<td>没有访问 auto 变量</td>
+</tr>
+<tr>
+<td>__NSStackBlock__</td>
+<td>访问了 auto 变量</td>
+</tr>
+<tr>
+<td>__NSMallocBlock__</td>
+<td>__NSStackBlock__ 调用了 copy</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p>看一下测试代码：</p>
+<figure class="highlight objectivec"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> (^block1)(<span class="keyword">void</span>) = ^&#123;</span><br><span class="line">	<span class="built_in">NSLog</span>(<span class="string">@"block1"</span>);</span><br><span class="line">&#125;;</span><br><span class="line">        </span><br><span class="line"><span class="keyword">int</span> age = <span class="number">1</span>;</span><br><span class="line"><span class="keyword">void</span> (^block2)(<span class="keyword">void</span>) = ^&#123;</span><br><span class="line">	<span class="built_in">NSLog</span>(<span class="string">@"block2 -- %d"</span>, age);</span><br><span class="line">&#125;;</span><br><span class="line">        </span><br><span class="line"><span class="built_in">NSLog</span>(<span class="string">@"%@  %@  %@"</span>, [block1 <span class="keyword">class</span>], [block2 <span class="keyword">class</span>], [^&#123;</span><br><span class="line">            <span class="built_in">NSLog</span>(<span class="string">@"block3 -- %d"</span>, age);</span><br><span class="line">        &#125; <span class="keyword">class</span>]);</span><br><span class="line">        </span><br><span class="line">ARC 环境打印结果：</span><br><span class="line">__NSGlobalBlock__  __NSMallocBlock__  __NSStackBlock__</span><br></pre></td></tr></table></figure>
+<p>根据上面 block 的类型区分分析测试代码里面的 block2 应该是在栈空间的，可是打印出的类型却是在堆空间，这是为什么呢？我看来看下生成的 cpp 文件，三种类型的 block isa 指针类型都是：_NSConcreteStackBlock，感觉也不对。<br>到这里就不能只看静态编译的 cpp 文件代码来分析了，这里要以运行时的结果为准，就是我们上面打印的结果，因为目前的环境是 ARC 环境，ARC 帮我们做了一些处理，下面我们使用 MRC 环境在走一遍上面的打印：<br><figure class="highlight sqf"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// MRC 环境打印结果</span></span><br><span class="line"><span class="variable">__NSGlobalBlock__</span>  <span class="variable">__NSStackBlock__</span>  <span class="variable">__NSStackBlock__</span></span><br></pre></td></tr></table></figure></p>
+<p>ARC 结果与我们分析的不正确是因为在 ARC 环境下会对 stack 类型的 block 做一次 copy 操作。</p>
+<p><br></p>
+<h3 id="block-copy"><a href="#block-copy" class="headerlink" title="block copy"></a>block copy</h3><p>不同类型的 block copy 结果</p>
+<table>
+<thead>
+<tr>
+<th>Block 类型</th>
+<th>副本源的配置存储域</th>
+<th>copy 效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>__NSGlobalBlock__</td>
+<td>程序的数据区域</td>
+<td>什么也不做</td>
+</tr>
+<tr>
+<td>__NSStackBlock__</td>
+<td>栈</td>
+<td>从栈赋值到堆</td>
+</tr>
+<tr>
+<td>__NSMallocBlock__</td>
+<td>堆</td>
+<td>引用计数增加</td>
+</tr>
+</tbody>
+</table>
+<p>再来看下 ARC 环境下栈空间 block 自动 copy 的情况：</p>
+<blockquote>
+<p>block 作为参数返回值<br>将 block 赋值给 __strong 指针时<br>block 作为 cocoa api 中方法名含有 usingBlock 的方法参数时<br>block 作为 GCD api 的方法参数时</p>
+</blockquote>
+<p>栈空间的 block 是捕获了 auto 的类型变量，而 auto 类型是自动销毁类型，在作用域消失后会回收内存，如果栈空间的 block 不做 copy 的话内存访问可能会出现错乱的问题，看下测试代码：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// MRC 环境</span></span><br><span class="line"><span class="function"><span class="keyword">typedef</span> <span class="title">void</span> <span class="params">(^Block)</span><span class="params">(<span class="keyword">void</span>)</span></span>;</span><br><span class="line">Block block;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> age = <span class="number">10</span>;</span><br><span class="line">    block = ^&#123;</span><br><span class="line">        NSLog(@<span class="string">"---- block -- %d"</span>, age);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">int</span> argc, <span class="keyword">const</span> <span class="keyword">char</span> * argv[])</span> </span>&#123;</span><br><span class="line">    @autoreleasepool &#123;</span><br><span class="line">       test();</span><br><span class="line">       block();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如上打印的结果就是随机值，因为上面 block 的内存分配在栈空间，当作用域结束后内存会回收，所以捕获的age的内存空间会回收，当我们再次访问时就会成为随机值。</p>
+<p><br></p>
+<h3 id="对象类型的-auto-变量"><a href="#对象类型的-auto-变量" class="headerlink" title="对象类型的 auto 变量"></a>对象类型的 auto 变量</h3><p>特殊的结论：</p>
+<blockquote>
+<p>当 block 内存访问了对象类型的 auto 变量时，如果 block 是在栈上，将不会对 auto 变量产生强引用。</p>
+</blockquote>
+<p>因为栈空间的 block 自己都可能随时销毁，这里不会对对象类型的 auto 变量产生强引用。</p>
+<p><br></p>
+<p>block 被拷贝到堆上面的情况：<br>看下测试代码：</p>
+<figure class="highlight inform7"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">// 1、访问 <span class="keyword">animal</span></span><br><span class="line">Block testBlock;</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">Animal</span> * <span class="keyword">animal</span> = <span class="comment">[<span class="comment">[Animal alloc]</span> init]</span>;</span><br><span class="line">	<span class="keyword">animal</span>.age = 10;</span><br><span class="line">	</span><br><span class="line">	testBlock = ^&#123;</span><br><span class="line">		NSLog(@<span class="string">"--- %d"</span>, <span class="keyword">animal</span>.age);</span><br><span class="line">	&#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 2、wealAnimal</span><br><span class="line">Block testBlock;</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">Animal</span> * <span class="keyword">animal</span> = <span class="comment">[<span class="comment">[Animal alloc]</span> init]</span>;</span><br><span class="line">	<span class="keyword">animal</span>.age = 10;</span><br><span class="line">	__weak <span class="keyword">Animal</span> * weakAnimal = <span class="keyword">animal</span>;</span><br><span class="line">	testBlock = ^&#123;</span><br><span class="line">		NSLog(@<span class="string">"--- %d"</span>, weakAnimal.age);</span><br><span class="line">	&#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如上，第一种情况 animal 的释放是在 testBlock 销毁时才会释放，第二种是在 animal 作用域结束也就是大括号结束时就释放了，说明这两种情况下的捕获有区别，来 cpp 文件看下捕获的情况：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1、访问 animal</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span> &#123;</span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">__block_impl</span></span> <span class="keyword">impl</span>;</span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">__main_block_desc_0</span></span>* Desc;</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 捕获的是 __strong 类型</span></span><br><span class="line">  Animal *__strong animal;</span><br><span class="line">  __main_block_impl_0(void *fp, <span class="class"><span class="keyword">struct</span> <span class="title">__main_block_desc_0</span></span> *desc, Animal *__strong _animal, int flags=<span class="number">0</span>) : animal(_animal) &#123;</span><br><span class="line">    <span class="keyword">impl</span>.isa = &amp;_NSConcreteStackBlock;</span><br><span class="line">    <span class="keyword">impl</span>.Flags = flags;</span><br><span class="line">    <span class="keyword">impl</span>.FuncPtr = fp;</span><br><span class="line">    Desc = desc;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2、wealAnimal</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span> &#123;</span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">__block_impl</span></span> <span class="keyword">impl</span>;</span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">__main_block_desc_0</span></span>* Desc;   </span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 捕获的是 __weak 类型</span></span><br><span class="line">  Animal *__weak weakAnimal;</span><br><span class="line">  __main_block_impl_0(void *fp, <span class="class"><span class="keyword">struct</span> <span class="title">__main_block_desc_0</span></span> *desc, Animal *__weak _weakAnimal, int flags=<span class="number">0</span>) : weakAnimal(_weakAnimal) &#123;</span><br><span class="line">    <span class="keyword">impl</span>.isa = &amp;_NSConcreteStackBlock;</span><br><span class="line">    <span class="keyword">impl</span>.Flags = flags;</span><br><span class="line">    <span class="keyword">impl</span>.FuncPtr = fp;</span><br><span class="line">    Desc = desc;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>可以看到在堆空间 block 对象类型的 auto 变量捕获是根据捕获的指针的强弱进行的。<br>再看 cpp 代码，生成的 __main_block_desc_0 结构有一点点的差别：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> void __main_block_copy_0(<span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span>*dst, <span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span>*src) &#123;_Block_object_assign((void*)&amp;dst-&gt;weakAnimal, (void*)src-&gt;weakAnimal, <span class="number">3</span><span class="comment">/*BLOCK_FIELD_IS_OBJECT*/</span>);&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> void __main_block_dispose_0(<span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span>*src) &#123;_Block_object_dispose((void*)src-&gt;weakAnimal, <span class="number">3</span><span class="comment">/*BLOCK_FIELD_IS_OBJECT*/</span>);&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">__main_block_desc_0</span></span> &#123;</span><br><span class="line">  size_t reserved;</span><br><span class="line">  size_t Block_size;</span><br><span class="line">  void (*copy)(<span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span>*, <span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span>*);</span><br><span class="line">  void (*dispose)(<span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span>*);</span><br><span class="line">&#125; __main_block_desc_0_DATA = &#123; <span class="number">0</span>, <span class="keyword">sizeof</span>(<span class="class"><span class="keyword">struct</span> <span class="title">__main_block_impl_0</span></span>), __main_block_copy_0, __main_block_dispose_0&#125;;</span><br></pre></td></tr></table></figure>
+<p>在生成的  __main_block_desc_0 中多了两个函数： <code>copy</code> 和 <code>dispose</code>。这两个函数就是用来管理捕获到的对象指针的。</p>
+<p>总结调用流程：</p>
+<p><strong>如果 block 被拷贝到堆上</strong></p>
+<blockquote>
+<p>1、调用 block 内部的 copy 函数<br>2、copy 函数会调用 <code>_Block_object_assign</code> 函数<br>3、<code>_Block_object_assign</code> 函数会根据 auto 变量修饰符的类型（<code>__strong</code>、<code>__weak</code>、<code>__unsafe_unretained</code>）做出相应的操作，形成强引用或弱引用</p>
+</blockquote>
+<p><strong>block 从堆上面移除</strong></p>
+<blockquote>
+<p>1、调用 block 内部的 dispose 函数<br>2、dispose 函数会调用 <code>_Block_object_dispose</code> 函数<br>3、<code>_Block_object_dispose</code> 函数会自动释放引用的 auto 变量</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>调用时机</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>copy</td>
+<td>栈上的 block 赋值到堆上</td>
+</tr>
+<tr>
+<td>dispose</td>
+<td>栈上的 block 被废弃</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<h4 id="clang-命令："><a href="#clang-命令：" class="headerlink" title="clang 命令："></a>clang 命令：</h4><p>普通：<code>xcrun -sdk iphoneos clang -arch arm64 -rewrite-objc main.m</code></p>
+<p>需要编译 <code>__weak</code> 修饰符：<code>xcrun -sdk iphoneos clang -arch arm64 -rewrite-objc -fobjc-arc -fobjc-runtime=ios-13.0.0 main.m</code></p>
+</div><div class="tags"></div><div class="post-nav"><a class="pre" href="/2020/07/03/block3-block原理/">block4-__block原理</a><a class="next" href="/2020/07/02/block2-变量的捕获/">block2-变量的捕获</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://yoursite.com"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/内存管理、RunLoop、Autorelease/" style="font-size: 15px;">内存管理、RunLoop、Autorelease</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2020/08/14/内存管理原理探究-续/">内存管理原理探究-续</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/08/08/内存管理原理探究/">内存管理原理探究</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/08/05/多线程/">多线程</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/07/29/RunLoop原理探究/">RunLoop原理探究</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/07/20/Runtime原理探究/">Runtime原理探究</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/07/06/block6-循环引用/">block6-循环引用</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/07/06/block5-block内存管理/">block5-block内存管理</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/07/03/block3-block原理/">block4-__block原理</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/07/02/block3-类型、copy原理/">block3-类型、copy原理</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/07/02/block2-变量的捕获/">block2-变量的捕获</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="http://www.example1.com/" title="site-name1" target="_blank">site-name1</a><ul></ul><a href="http://www.example2.com/" title="site-name2" target="_blank">site-name2</a><ul></ul><a href="http://www.example3.com/" title="site-name3" target="_blank">site-name3</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2020 <a href="/." rel="nofollow">白夜追凶.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.css"><script type="text/javascript" src="/js/copycode.js" successtext="复制成功!"></script><link rel="stylesheet" type="text/css" href="/css/copycode.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
