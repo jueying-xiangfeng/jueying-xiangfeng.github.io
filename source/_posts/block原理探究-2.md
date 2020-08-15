@@ -2,7 +2,10 @@
 title: block原理探究-2
 date: 2019-01-14 19:25:32
 tags:
+description: 
 ---
+
+<!-- more -->
 
 ### block的类型
 

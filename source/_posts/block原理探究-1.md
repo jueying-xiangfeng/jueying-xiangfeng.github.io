@@ -2,7 +2,10 @@
 title: block原理探究-1
 date: 2018-07-25 13:26:21
 tags:
+description: 
 ---
+
+<!-- more -->
 
 ### block 底层数据结构
 

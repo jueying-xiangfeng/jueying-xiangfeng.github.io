@@ -1,6 +1,9 @@
 ---
 title: category原理探究-1
 date: 2018-07-21 14:40:13
+tag: category 原理
+toc: true
+description: 
 ---
 
 ### category探究准备
@@ -22,6 +25,8 @@ date: 2018-07-21 14:40:13
 @end
 ```
 以Eat分类为例，请出 `clang` 命令：`clang -rewrite-objc Animal+Eat.m` ，生成.cpp文件。
+
+<!-- more -->
 
 ### category的真面目
 在.cpp文件最下面可以找到category被编译后的结构：

@@ -1,7 +1,10 @@
 ---
 title: block4-__block原理
 date: 2020-07-03 11:25:51
-tags:
+tags: block 原理
+toc: true
+description: 
+
 ---
 
 #### __Block 原理
@@ -18,6 +21,8 @@ block();
 
 /// 输出结果 --- age = 10
 ```
+
+<!-- more -->
 
 这个案例想必不会陌生，原理可以根据前面变量的捕获分析，来看下 cpp 代码：
 

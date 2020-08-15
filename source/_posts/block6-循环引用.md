@@ -1,7 +1,9 @@
 ---
 title: block6-循环引用
 date: 2020-07-06 11:15:01
-tags:
+tags: block 循环引用
+toc: true
+description: 
 ---
 
 ### 循环引用
@@ -10,7 +12,7 @@ tags:
 
 ![retaincircly.png](http://ww1.sinaimg.cn/large/005O0Zogly1ggh999v50lj30pa0h6n31.jpg)
 
-
+<!-- more -->
 
 看一下测试代码：
 

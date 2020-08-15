@@ -1,9 +1,14 @@
 ---
 title: category原理探究-2
 date: 2018-07-22 12:55:46
-tags:
+tag: category 原理
+toc: true
+description: 
+
 ---
 ### +load 方法解析
+
+<!-- more -->
 
 分析load方法前先来做一个小测验：
 

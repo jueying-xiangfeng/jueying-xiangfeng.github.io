@@ -1,9 +1,14 @@
 ---
 title: category原理探究-3
 date: 2018-07-22 18:40:53
-tags:
+tag: category 原理
+toc: true
+description: 
+
 ---
 ### 关联对象的使用
+
+<!-- more -->
 
 ```
 @interface Animal (Eat)

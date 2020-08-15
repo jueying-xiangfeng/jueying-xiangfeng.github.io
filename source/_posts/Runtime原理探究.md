@@ -1,8 +1,9 @@
 ---
 title: Runtime原理探究
 date: 2020-07-20 10:39:44
-tags:
-
+tag: Runtime
+toc: true
+description: 
 
 ---
 
@@ -14,7 +15,9 @@ tags:
 
 
 
-### 1、isa 详解
+### isa 详解
+
+<!-- more -->
 
 在 arm64 结构之前，isa 就是一个普通指针，存储着 Class、Meta-Class 对象的内存地址。
 
@@ -129,7 +132,7 @@ void *objc_destructInstance(id obj)
 
 如上，在 dealloc 时会分别获取是否有关联对象、析构函数、弱指针等标记位，如果没有是直接释放的，否则会调用相关的方式释放对应的资源。
 
-### 2、Class 结构
+### Class 结构
 
 ```objective-c
 struct objc_object {
@@ -226,7 +229,7 @@ types 是包含了函数返回值、参数编码的字符串
 
 
 
-### 3、方法缓存
+### 方法缓存
 
 Class 内部结构用有个方法缓存（cache_t），用散列表（哈希表）来缓存曾经调用过的方法，可以提高方法的查找速度
 
@@ -323,7 +326,7 @@ void cache_t::expand()
 
 
 
-### 4、objc_msgSend 执行流程
+### objc_msgSend 执行流程
 
 #### 第一个阶段 - 消息发送
 
@@ -466,7 +469,7 @@ int __forwarding__(void *frameStackPointer, int isStret) {
 
 
 
-### 5、Super 本质
+### Super 本质
 
 #### super 本质调用
 
@@ -663,7 +666,7 @@ void cache_t::insert(Class cls, SEL sel, IMP imp, id receiver)
 
 
 
-### 6、几个 runtime 相关的应用
+### 几个 runtime 相关的应用
 
 #### 常用的几个类的实现
 

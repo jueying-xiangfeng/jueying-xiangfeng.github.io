@@ -1,13 +1,19 @@
 ---
 title: KVO-KVC的原理探究 - KVO篇
 date: 2018-07-17 11:38:17
-desc: 哈利的首付款楼上的回复考虑到.
+tag: KVO
+toc: true
+description: 
+
 ---
 
 
 ### 关于KVO的探究
 
 #### KVO的基本使用
+
+<!-- more -->
+
 创建Person类，添加属性age：
 
 ```

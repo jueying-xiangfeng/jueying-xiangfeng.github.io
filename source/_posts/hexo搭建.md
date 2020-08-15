@@ -1,7 +1,10 @@
 ---
 title: hexo搭建
 date: 2018-06-01 09:24:54
-tags:
+tag: hexo
+toc: true
+description: 
+
 ---
 ## 开始搭建
 ### 1. 创建Git仓库
@@ -14,7 +17,10 @@ $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/inst
 ```
 还可以查看homebrew [官方文档](https://brew.sh/)
 
+<!-- more -->
+
 安装Node.js:
+
 ```
 $ brew link node
 $ brew uninstall node

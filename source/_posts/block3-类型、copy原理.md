@@ -1,7 +1,9 @@
 ---
 title: block3-类型、copy原理
 date: 2020-07-02 16:15:21
-tags:
+tags: block 类型、copy
+toc: true
+description: 
 ---
 
 ### block 类型
@@ -20,7 +22,7 @@ block 类型 | 环境
 \_\_NSStackBlock\_\_ | 访问了 auto 变量
 \_\_NSMallocBlock\_\_ | \_\_NSStackBlock\_\_ 调用了 copy
 
-<br/>
+<!-- more -->
 
 看一下测试代码：
 

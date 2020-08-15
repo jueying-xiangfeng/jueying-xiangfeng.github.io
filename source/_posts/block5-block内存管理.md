@@ -1,7 +1,10 @@
 ---
 title: block5-block内存管理
 date: 2020-07-06 09:09:58
-tags:
+tags: block 内存管理
+toc: true
+description: 
+
 ---
 
 ### block 内存管理
@@ -18,6 +21,8 @@ void (^block)(void) = ^{
 block(); 
 NSLog(@"----");
 ```
+<!-- more -->
+
 查看 cpp 文件代码：
 
 ```

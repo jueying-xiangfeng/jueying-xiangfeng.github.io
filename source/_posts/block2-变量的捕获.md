@@ -1,10 +1,10 @@
 ---
 title: block2-变量的捕获
 date: 2020-07-02 14:14:51
-tags:
+tags: block 变量捕获
+toc: true
+description: 
 ---
-
-<br/>
 
 ### 变量的捕获
 
@@ -16,7 +16,7 @@ tags:
 局部变量 - static | √ | 指针传递
 全局变量 | x | 直接访问
 
-<br/>
+<!-- more -->
 
 下面我们来验证一下，测试代码如下：
 

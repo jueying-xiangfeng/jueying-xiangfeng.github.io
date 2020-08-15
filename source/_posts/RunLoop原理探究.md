@@ -1,16 +1,21 @@
 ---
 title: RunLoop原理探究
 date: 2020-07-29 11:17:19
-tags:
+tag: RunLoop
+toc: true
+description: 
+
 ---
 
 
 
-### 1、RunLoop 概念
+### RunLoop 概念
 
 顾名思义，RunLoop 就是运行循环，在程序运行过程中循环做一些事情。这种模型通常被称作 [Event Loop](https://en.wikipedia.org/wiki/Event_loop)，这种模型的关键点在于：如何管理事件/消息，如果保证线程在没有处理消息时休眠避免资源占用、再有消息到来时立刻被唤醒。
 
-一把来说，一个线程一次只能执行一次任务，执行完成后线程就会退出，如果要保证线程能随时处理事件但不退出，我们可能需要这样做：
+<!-- more -->
+
+一般来说，一个线程一次只能执行一次任务，执行完成后线程就会退出，如果要保证线程能随时处理事件但不退出，我们可能需要这样做：
 
 ```objective-c
 int main(int argc, char * argv[]) {
@@ -31,7 +36,7 @@ RunLoop 其实就是一个对象，这个对象管理了其需要处理的消息
 
 可以在[这里](http://opensource.apple.com/tarballs/CF/)下载到 CoreFoundation的源码来查看具体实现。
 
-### 2、RunLoop 结构
+### RunLoop 结构
 
 iOS 有两套 API 来访问和使用 RunLoop：`NSRunLoop`、`CFRunLoop`。NSRunLoop 是基于 CFRunLoop 的包装
 
@@ -139,7 +144,7 @@ typedef CF_OPTIONS(CFOptionFlags, CFRunLoopActivity) {
 
 
 
-### 3、RunLoop 与线程的关系
+### RunLoop 与线程的关系
 
 每条线程都有唯一一个与之对应的 RunLoop 对象，他们是一一对应的。
 
@@ -334,9 +339,9 @@ static int32_t __CFRunLoopRun(CFRunLoopRef rl, CFRunLoopModeRef rlm, CFTimeInter
 
 
 
-### 5、RunLoop 应用
+### RunLoop 应用
 
-#### 5.1 NSTimer
+#### NSTimer
 
 我们知道 NSTimer 是一个不准确的定时器，是有误差的。
 
@@ -373,7 +378,7 @@ struct __CFRunLoopTimer {
 
 
 
-#### 5.2 GCD
+#### GCD
 
 GCD 的某些接口也用到了 RunLoop，例如：
 
@@ -393,7 +398,7 @@ dispatch_async(dispatch_get_global_queue(0, 0), ^{
 
 
 
-#### 5.3 PerformSelector
+#### PerformSelector
 
 看下面的例子：
 
@@ -493,7 +498,7 @@ dispatch_async(dispatch_get_global_queue(0, 0), ^{
 
 
 
-#### 5.4 线程保活
+#### 线程保活
 
 我们知道当线程在执行完当前任务后就会退出，那么如果想要线程在执行完任务后依然保留，当我们彻底不需要时再将线程退出。这个时候就需要使用 RunLoop 来做到线程保活，我们自己来控制线程的生命周期。
 

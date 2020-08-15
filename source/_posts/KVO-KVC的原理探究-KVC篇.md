@@ -1,10 +1,16 @@
 ---
 title: KVO-KVC的原理探究 - KVC篇
 date: 2018-07-19 15:12:40
-tags:
+tag: KVC
+toc: true
+description: 
+
 ---
 ### 关于KVC的探究
 #### 基本介绍和使用
+
+<!-- more -->
+
 KVC全称Key-Value Coding 键值编码，可以通过Key来访问某个属性，常见的API：
 ```
 - (nullable id)valueForKeyPath:(NSString *)keyPath;
