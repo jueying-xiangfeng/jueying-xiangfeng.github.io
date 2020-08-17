@@ -2,6 +2,20 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://yoursite.com/2020/08/17/swift%E5%AD%A6%E4%B9%A0/</loc>
+    
+    <lastmod>2020-08-17T14:31:19.646Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://yoursite.com/2020/08/14/%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6-%E7%BB%AD/</loc>
+    
+    <lastmod>2020-08-17T14:07:44.039Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://yoursite.com/about/index.html</loc>
     
     <lastmod>2020-08-16T07:18:49.392Z</lastmod>
@@ -138,13 +152,6 @@
     <loc>http://yoursite.com/2020/08/08/%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/</loc>
     
     <lastmod>2020-08-15T14:24:20.984Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://yoursite.com/2020/08/14/%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6-%E7%BB%AD/</loc>
-    
-    <lastmod>2020-08-15T14:24:18.415Z</lastmod>
     
   </url>
   
