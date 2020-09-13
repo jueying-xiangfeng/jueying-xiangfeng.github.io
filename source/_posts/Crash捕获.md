@@ -85,3 +85,7 @@ static NSUncaughtExceptionHandler * originalUncaughtExceptionHandler;
 }
 ```
 
+
+
+[Demo地址](https://github.com/jueying-xiangfeng/recordCrashLog)
+
